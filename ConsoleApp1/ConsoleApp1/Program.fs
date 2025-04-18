@@ -1,46 +1,49 @@
 ﻿open System
 
-open FParsec
+// Определение типа сообщений
+type AgentMessage =
+    | Hello of string
+    | Minus of int * int
+    | Date
+    | Quit
 
-// Алгебраический тип
-type Expr =
-    | Number of int
-    | Add of Expr * Expr
-    | Sub of Expr * Expr
-    | Mul of Expr * Expr
-    | Div of Expr * Expr
-
-// Парсинг чисел
-let ws = spaces
-let str_ws s = pstring s .>> ws
-let number: Parser<Expr, unit> =
-    pint32 .>> ws |>> Number
-
-// Операции с приоритетами
-let opp = new OperatorPrecedenceParser<Expr, unit, unit>()
-let expr = opp.ExpressionParser
-
-let term = number <|> between (str_ws "(") (str_ws ")") expr
-
-opp.TermParser <- term
-
-opp.AddOperator(InfixOperator("+", ws, 1, Associativity.Left, fun x y -> Add(x, y)))
-opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Sub(x, y)))
-opp.AddOperator(InfixOperator("*", ws, 2, Associativity.Left, fun x y -> Mul(x, y)))
-opp.AddOperator(InfixOperator("/", ws, 2, Associativity.Left, fun x y -> Div(x, y)))
-
-// Главный парсер
-let parseExpression input =
-    match run expr input with
-    | Success(result, _, _) -> result
-    | Failure(errorMsg, _, _) -> failwith errorMsg
+// Создание агента
+let agent = 
+    MailboxProcessor.Start(fun inbox ->
+        async {
+            while true do
+                let! message = inbox.Receive()
+                match message with
+                | Hello name -> 
+                    Console.WriteLine("Привет, {0}!",name)
+                | Minus (a, b) ->                     
+                    Console.WriteLine("{0} - {1} = {2}",a,b,a-b)
+                | Date -> 
+                    Console.WriteLine("Сейчас: {0}",DateTime.Now)
+                | Quit -> 
+                    Console.WriteLine("Завершение работы агента.")
+                    Environment.Exit(0)
+        }
+    )
 
 
 [<EntryPoint>]
 let main argv =
-    let input = "1 + 2 * (3 + 4)"
-    let parsed = parseExpression input
+    Console.WriteLine("Примеры работы агента:")
 
-    Console.WriteLine("Результат разбора: {0}", parsed)
+    agent.Post(Hello "Sanya")
+    agent.Post(Minus(52, 10))
+    agent.Post(Date)
+    
 
+
+ 
+    Async.Sleep(2000) |> Async.RunSynchronously
+
+    agent.Post(Quit)
+
+  
+    agent.Post(Date)
+
+    Console.WriteLine("Программа завершена.")
     0
