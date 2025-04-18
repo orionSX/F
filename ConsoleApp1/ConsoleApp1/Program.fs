@@ -66,7 +66,7 @@ let calculateGoldenNuggets (T: bigint list) =
 [<EntryPoint>]
 let main argv =
    
-    let x, y = generatePellSolutions 20   
+    let x, y = generatePellSolutions 10   
  
     let p1 = [14I]
     let q1 = [1I]
@@ -77,7 +77,7 @@ let main argv =
     
     
     let sortedT = 
-        let p1New = generateExtendedSolutions 20 p1 q1 p2 q2 p3 q3 x y
+        let p1New = generateExtendedSolutions 10 p1 q1 p2 q2 p3 q3 x y
         List.sort (p1New)
     
    
