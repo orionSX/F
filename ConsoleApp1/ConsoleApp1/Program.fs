@@ -1,49 +1,76 @@
 ﻿open System
+open System.Text.RegularExpressions
 
-// Определение типа сообщений
-type AgentMessage =
-    | Hello of string
-    | Minus of int * int
-    | Date
-    | Quit
 
-// Создание агента
-let agent = 
-    MailboxProcessor.Start(fun inbox ->
-        async {
-            while true do
-                let! message = inbox.Receive()
-                match message with
-                | Hello name -> 
-                    Console.WriteLine("Привет, {0}!",name)
-                | Minus (a, b) ->                     
-                    Console.WriteLine("{0} - {1} = {2}",a,b,a-b)
-                | Date -> 
-                    Console.WriteLine("Сейчас: {0}",DateTime.Now)
-                | Quit -> 
-                    Console.WriteLine("Завершение работы агента.")
-                    Environment.Exit(0)
-        }
-    )
+type Passport =
+    {
+        Series: string
+        Number: string
+        FullName: string
+        DateOfBirth: DateTime
+        DateOfIssue: DateTime
+    }
+
+    
+    static member private ValidateSeries series =
+        let pattern = @"^\d{4}$"  
+        Regex.IsMatch(series, pattern)
+
+    static member private ValidateNumber number =
+        let pattern = @"^\d{6}$" 
+        Regex.IsMatch(number, pattern)
+
+    static member private ValidateFullName fullName =
+        let pattern = @"^[А-ЯЁ][а-яё]+\s[А-ЯЁ][а-яё]+\s[А-ЯЁ][а-яё]+$" 
+        Regex.IsMatch(fullName, pattern)
+
+    static member private ValidateDateOfBirth dateOfBirth =
+        dateOfBirth < DateTime.Now && dateOfBirth > DateTime(1900, 1, 1)
+
+    static member private ValidateDateOfIssue dateOfIssue =
+        dateOfIssue <= DateTime.Now
+
+    // Метод для создания паспорта с валидацией данных
+    static member Create(series, number, fullName, dateOfBirth, dateOfIssue) =
+        let isValid =
+            Passport.ValidateSeries series
+            && Passport.ValidateNumber number
+            && Passport.ValidateFullName fullName
+            && Passport.ValidateDateOfBirth dateOfBirth
+            && Passport.ValidateDateOfIssue dateOfIssue
+        if isValid then
+            Some {
+                Series = series
+                Number = number
+                FullName = fullName
+                DateOfBirth = dateOfBirth
+                DateOfIssue = dateOfIssue
+            }
+        else
+            None
+
+
+    member this.Print() =
+        printfn "Паспорт гражданина РФ:"
+        printfn "Серия: %s" this.Series
+        printfn "Номер: %s" this.Number
+        printfn "ФИО: %s" this.FullName
+        printfn "Дата рождения: %s" (this.DateOfBirth.ToString("dd.MM.yyyy"))
+        printfn "Дата выдачи: %s" (this.DateOfIssue.ToString("dd.MM.yyyy"))
+
+    
+    member this.Equal(other: Passport) =
+        this.Series = other.Series && this.Number = other.Number
 
 
 [<EntryPoint>]
 let main argv =
-    Console.WriteLine("Примеры работы агента:")
-
-    agent.Post(Hello "Sanya")
-    agent.Post(Minus(52, 10))
-    agent.Post(Date)
-    
-
-
- 
-    Async.Sleep(2000) |> Async.RunSynchronously
-
-    agent.Post(Quit)
-
   
-    agent.Post(Date)
+    match Passport.Create("1234", "567890", "Иванов Иван Иванович", DateTime(1990, 5, 12), DateTime(2010, 3, 15)) with
+    | Some passport ->
+        passport.Print()        
+        let passport2 = Passport.Create("1234", "567890", "Петров Петр Петрович", DateTime(1985, 7, 20), DateTime(2005, 6, 10)).Value
+        printfn "\nСравнение паспортов: %b" (passport.Equal(passport2))
+    | None -> printfn "Ошибка: неверные данные для паспорта"
 
-    Console.WriteLine("Программа завершена.")
-    0
+    0 
