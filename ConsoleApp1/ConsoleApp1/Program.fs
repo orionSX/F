@@ -1,81 +1,46 @@
 ﻿open System
 
-type Maybe<'T> =
-    | Just of 'T
-    | Nothing
+open FParsec
 
-// Функтор
-let map f m =
-    match m with
-    | Just x -> Just (f x)
-    | Nothing -> Nothing
+// Алгебраический тип
+type Expr =
+    | Number of int
+    | Add of Expr * Expr
+    | Sub of Expr * Expr
+    | Mul of Expr * Expr
+    | Div of Expr * Expr
 
-// Аппликативный функтор
-let apply mf mx =
-    match mf, mx with
-    | Just f, Just x -> Just (f x)
-    | _ -> Nothing
+// Парсинг чисел
+let ws = spaces
+let str_ws s = pstring s .>> ws
+let number: Parser<Expr, unit> =
+    pint32 .>> ws |>> Number
 
-let pure x  = Just x
+// Операции с приоритетами
+let opp = new OperatorPrecedenceParser<Expr, unit, unit>()
+let expr = opp.ExpressionParser
 
-// Монада
-let returnM x = Just x
+let term = number <|> between (str_ws "(") (str_ws ")") expr
 
-let bind m f =
-    match m with
-    | Just x -> f x
-    | Nothing -> Nothing
+opp.TermParser <- term
+
+opp.AddOperator(InfixOperator("+", ws, 1, Associativity.Left, fun x y -> Add(x, y)))
+opp.AddOperator(InfixOperator("-", ws, 1, Associativity.Left, fun x y -> Sub(x, y)))
+opp.AddOperator(InfixOperator("*", ws, 2, Associativity.Left, fun x y -> Mul(x, y)))
+opp.AddOperator(InfixOperator("/", ws, 2, Associativity.Left, fun x y -> Div(x, y)))
+
+// Главный парсер
+let parseExpression input =
+    match run expr input with
+    | Success(result, _, _) -> result
+    | Failure(errorMsg, _, _) -> failwith errorMsg
+
 
 [<EntryPoint>]
-let main argv = 
-    let testValue = 5
-    let testF = fun x -> x + 1
-    let testG = fun x -> x * 2
-    Console.WriteLine((testF>>testG)(5))
-    // Функтор — законы
-    let law1 = 
-        map id (Just testValue) = Just testValue
+let main argv =
+    let input = "1 + 2 * (3 + 4)"
+    let parsed = parseExpression input
 
-    let law2 = 
-        map (testF >> testG) (Just testValue) = (map testG (map testF (Just testValue)))
-
-    // Аппликативный функтор — законы
-    let law3 = 
-        apply (pure id) (Just testValue) = Just testValue
-
-    let law4 = 
-        apply (pure testF) (pure testValue) = pure (testF testValue)
-
-    let law5 = 
-        let u = Just testF
-        apply u (pure testValue) = apply (pure (fun f -> f testValue)) u
-
-    // Монада — законы
-    let law6 = 
-        bind (returnM testValue) (fun x -> Just (testF x)) = (fun x -> Just (testF x)) testValue
-
-    let law7 = 
-        bind (Just testValue) returnM = Just testValue
-
-    let law8 = 
-        let m = Just testValue
-        bind (bind m (fun x -> Just (testF x))) (fun x -> Just (testG x)) = 
-            bind m (fun x -> bind (Just (testF x)) (fun y -> Just (testG y)))
-
-    // Вывод результатов
-    Console.WriteLine("Проверка законов:")
-    Console.WriteLine("Функтор:")
-    Console.WriteLine("1. Идентичность: {0}", law1)
-    Console.WriteLine("2. Композиция: {0}", law2)
-    
-    Console.WriteLine("\nАппликативный функтор:")
-    Console.WriteLine("3. Идентичность: {0}", law3)
-    Console.WriteLine("4. Гомоморфизм: {0}", law4)
-    Console.WriteLine("5. Обмен (интерчейндж): {0}", law5)
-    
-    Console.WriteLine("\nМонада:")
-    Console.WriteLine("6. Левая идентичность: {0}", law6)
-    Console.WriteLine("7. Правая идентичность: {0}", law7)
-    Console.WriteLine("8. Ассоциативность: {0}", law8)
+    Console.WriteLine("Результат разбора: {0}", parsed)
 
     0
