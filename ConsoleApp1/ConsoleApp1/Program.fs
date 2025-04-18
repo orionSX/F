@@ -1,68 +1,81 @@
 ﻿open System
 
-type IPrint =
-    abstract Print : unit -> unit
+type Maybe<'T> =
+    | Just of 'T
+    | Nothing
 
+// Функтор
+let map f m =
+    match m with
+    | Just x -> Just (f x)
+    | Nothing -> Nothing
 
-type RealGeometricFigure=
-    |Rectangle of width:float * height:float
-    |Square of side:float
-    |Circle of radius:float
+// Аппликативный функтор
+let apply mf mx =
+    match mf, mx with
+    | Just f, Just x -> Just (f x)
+    | _ -> Nothing
 
-let calcArea figure =
-    match figure with
-    | Rectangle(width, height) ->  Console.WriteLine("{0}",(width * height))
-    | Square(side) -> Console.WriteLine("{0}",(side * side))
-    | Circle(radius) -> Console.WriteLine("{0}",(Math.PI * radius ** 2.0))
-let figs = [
-    Rectangle(5.0,6.0);Square(5.0);Circle(2.0)
-]
-[<AbstractClass>]
-type GeometricFigure() =
-    abstract Area : float
+let pure x  = Just x
 
-type Rectangle(width: float, height: float) =
-    inherit GeometricFigure()
-    member this.Width = width
-    member this.Height = height
-    override this.Area = this.Width * this.Height
-    override this.ToString() =
-        
-        String.Format("{0}, {1}", "Прямоугольник", String.Format("ширина: {0}, высота: {1}, площадь: {2}", this.Width, this.Height, this.Area))
-    interface IPrint with
-        member this.Print() = Console.WriteLine("{0}, {1}", "Print", this.ToString())
+// Монада
+let returnM x = Just x
 
-type Square(side: float) =
-    inherit Rectangle(side, side)
-    override this.ToString() = 
-        String.Format("{0}, {1}", "Квадрат", String.Format("сторона: {0}, площадь: {1}", this.Width, this.Area))
-    interface IPrint with
-        member this.Print() = Console.WriteLine("{0}, {1}", "Print", this.ToString())
-
-type Circle(radius: float) =
-    inherit GeometricFigure()
-    member this.Radius = radius
-    override this.Area = Math.PI * this.Radius ** 2.0
-    override this.ToString() = 
-        String.Format("{0}, {1}", "Круг", String.Format("радиус: {0}, площадь: {1}", this.Radius, this.Area))
-    interface IPrint with
-        member this.Print() = Console.WriteLine("{0}, {1}", "Print", this.ToString())
-
-let printFigure (figure: IPrint) = figure.Print()
-
-let rect = Rectangle(11.0, 9.0)
-let square = Square(5.0)
-let circle = Circle(3.0)
-
-printFigure rect
-printFigure square
-printFigure circle
-
-Console.WriteLine("{0}, {1}", "ToString", rect.ToString())
-Console.WriteLine("{0}, {1}", "ToString", square.ToString())
-Console.WriteLine("{0}, {1}", "ToString", circle.ToString())
+let bind m f =
+    match m with
+    | Just x -> f x
+    | Nothing -> Nothing
 
 [<EntryPoint>]
 let main argv = 
-    figs |> List.iter calcArea
+    let testValue = 5
+    let testF = fun x -> x + 1
+    let testG = fun x -> x * 2
+    Console.WriteLine((testF>>testG)(5))
+    // Функтор — законы
+    let law1 = 
+        map id (Just testValue) = Just testValue
+
+    let law2 = 
+        map (testF >> testG) (Just testValue) = (map testG (map testF (Just testValue)))
+
+    // Аппликативный функтор — законы
+    let law3 = 
+        apply (pure id) (Just testValue) = Just testValue
+
+    let law4 = 
+        apply (pure testF) (pure testValue) = pure (testF testValue)
+
+    let law5 = 
+        let u = Just testF
+        apply u (pure testValue) = apply (pure (fun f -> f testValue)) u
+
+    // Монада — законы
+    let law6 = 
+        bind (returnM testValue) (fun x -> Just (testF x)) = (fun x -> Just (testF x)) testValue
+
+    let law7 = 
+        bind (Just testValue) returnM = Just testValue
+
+    let law8 = 
+        let m = Just testValue
+        bind (bind m (fun x -> Just (testF x))) (fun x -> Just (testG x)) = 
+            bind m (fun x -> bind (Just (testF x)) (fun y -> Just (testG y)))
+
+    // Вывод результатов
+    Console.WriteLine("Проверка законов:")
+    Console.WriteLine("Функтор:")
+    Console.WriteLine("1. Идентичность: {0}", law1)
+    Console.WriteLine("2. Композиция: {0}", law2)
+    
+    Console.WriteLine("\nАппликативный функтор:")
+    Console.WriteLine("3. Идентичность: {0}", law3)
+    Console.WriteLine("4. Гомоморфизм: {0}", law4)
+    Console.WriteLine("5. Обмен (интерчейндж): {0}", law5)
+    
+    Console.WriteLine("\nМонада:")
+    Console.WriteLine("6. Левая идентичность: {0}", law6)
+    Console.WriteLine("7. Правая идентичность: {0}", law7)
+    Console.WriteLine("8. Ассоциативность: {0}", law8)
+
     0
