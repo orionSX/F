@@ -3,6 +3,20 @@
 type IPrint =
     abstract Print : unit -> unit
 
+
+type RealGeometricFigure=
+    |Rectangle of width:float * height:float
+    |Square of side:float
+    |Circle of radius:float
+
+let calcArea figure =
+    match figure with
+    | Rectangle(width, height) ->  Console.WriteLine("{0}",(width * height))
+    | Square(side) -> Console.WriteLine("{0}",(side * side))
+    | Circle(radius) -> Console.WriteLine("{0}",(Math.PI * radius ** 2.0))
+let figs = [
+    Rectangle(5.0,6.0);Square(5.0);Circle(2.0)
+]
 [<AbstractClass>]
 type GeometricFigure() =
     abstract Area : float
@@ -50,6 +64,5 @@ Console.WriteLine("{0}, {1}", "ToString", circle.ToString())
 
 [<EntryPoint>]
 let main argv = 
-    Console.WriteLine("Введите два числа через пробел:")
-    let input = Console.ReadLine().Split()
+    figs |> List.iter calcArea
     0
