@@ -51,16 +51,12 @@ let generateExtendedSolutions n (p1: bigint list) (q1: bigint list) (p2: bigint 
 
 
 let calculateGoldenNuggets (T: bigint list) =
-    let mutable sum = 0I
-    let mutable count = 0
-    let mutable ret = 0
-    while ret < T.Length && count < 31 do
-        if (T.[ret] - 14I) % 10I = 0I then
-            count <- count + 1
-            Console.WriteLine("KFC #{0}: {1}" ,count, ((T.[ret] - 14I) / 10I))
-            sum <- sum + ((T.[ret] - 14I) / 10I)
-        ret <- ret + 1
-    sum
+    T
+    |> List.filter (fun x -> (x - 14I) % 10I = 0I)
+    |> List.map (fun x -> (x - 14I) / 10I)
+    |> List.truncate 31
+    |> List.sum
+
 
 
 [<EntryPoint>]
